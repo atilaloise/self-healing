@@ -1,0 +1,82 @@
+- defaultTab: nodes
+  description: Instala e configura um zabbix agent
+  executionEnabled: true
+  group: ZABBIX/agent
+  id: 3e3f8e18-3cd1-4e56-9051-2bdbbec0e63d
+  loglevel: INFO
+  name: Install and configure agent
+  nodeFilterEditable: true
+  nodefilters:
+    dispatch:
+      excludePrecedence: true
+      keepgoing: true
+      rankOrder: ascending
+      successOnEmptyNodeFilter: false
+      threadcount: '2'
+    filter: ''
+  nodesSelectedByDefault: true
+  options:
+  - description: |
+      Informe o zabbix server autorizado a monitorar essas maquinas
+    label: ZABBIX SERVER
+    name: ZABBIX_SERVER
+    required: true
+    value: 192.168.1.200
+  - hidden: true
+    name: zabbix_token
+    secure: true
+    storagePath: keys/selfhealing/zabbix-token
+    valueExposed: true
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - configuration:
+        ansible-become: 'false'
+        ansible-become-method: sudo
+        ansible-extra-vars: |-
+          zabbix_server: ${option.ZABBIX_SERVER}
+          zabbix_token: ${option.zabbix_token}
+          host_group: ${node.os-family}
+        ansible-playbook-inline: "---\n- name: Install zabbix\n  hosts: all \n  become:\
+          \ true\n  tasks:\n    - name: install Python e agent zabbix\n      ansible.builtin.package:\n\
+          \        name: \n         - python3\n         - python3-pip\n        state:\
+          \ present\n    - name: Install agent-zabbix\n      ansible.builtin.package:\n\
+          \        name: zabbix-agent\n        state: present\n    - name: \"Configurando\
+          \ parametro 'Server={{ zabbix_server }}'\"\n      lineinfile:\n        path:\
+          \ /etc/zabbix/zabbix_agentd.conf\n        regexp: '^Server='\n        line:\
+          \ \"Server={{ zabbix_server }}\"\n        state: present\n    - name: \"\
+          Configurando parametro 'ServerActive={{ zabbix_server }}'\"\n      lineinfile:\n\
+          \        path: /etc/zabbix/zabbix_agentd.conf\n        regexp: '^ServerActive='\n\
+          \        line: \"ServerActive={{ zabbix_server }}\"\n        state: present\n\
+          \    - name: \"Configurando parametro 'AllowKey=system.run[*]'\"\n     \
+          \ lineinfile:\n        path: /etc/zabbix/zabbix_agentd.conf\n        regexp:\
+          \ '^AllowKey='\n        line: \"AllowKey=system.run[*]\"\n        state:\
+          \ present\n    - name: \"Configurando parametro 'Hostname={{ ansible_hostname\
+          \ }}'\"\n      lineinfile:\n        path: /etc/zabbix/zabbix_agentd.conf\n\
+          \        regexp: '^Hostname='\n        line: \"Hostname={{ ansible_hostname\
+          \ }}\"\n        state: present\n\n    - name: REGISTRANDO HOST NO ZABBIX\n\
+          \      vars:\n        ansible_zabbix_auth_key: \"{{ zabbix_token }}\"\n\
+          \        ansible_network_os: community.zabbix.zabbix\n        ansible_connection:\
+          \ httpapi\n        ansible_httpapi_port: 443\n        ansible_httpapi_use_ssl:\
+          \ true\n        ansible_httpapi_validate_certs: false\n        ansible_host:\
+          \ zbx.skywalkertech.com.br\n        ansible_zabbix_url_path: \"\"\n    \
+          \  become: false\n      community.zabbix.zabbix_host:\n        host_name:\
+          \ \"{{ ansible_hostname }}\"\n        visible_name: \"{{ ansible_hostname\
+          \ }}\"\n        description: \"Registrado via rundeck\"\n        host_groups:\n\
+          \          - \"{{ host_group }}\"\n        link_templates:\n          -\
+          \ Linux by Zabbix agent\n        status: enabled\n        state: present\n\
+          \        interfaces:\n          - type: 1\n            main: 1\n       \
+          \     useip: 1\n            ip: \"{{ ansible_default_ipv4.address }}\"\n\
+          \            dns: \"\"\n            port: \"10050\"\n\n    - name: Restart\
+          \ zabbix-agent service\n      service:\n        name: zabbix-agent\n   \
+          \     state: restarted\n        "
+        ansible-ssh-passphrase-option: option.password
+        ansible-ssh-use-agent: 'false'
+      nodeStep: true
+      type: com.batix.rundeck.plugins.AnsiblePlaybookInlineWorkflowNodeStep
+    keepgoing: false
+    strategy: node-first
+  uuid: 3e3f8e18-3cd1-4e56-9051-2bdbbec0e63d
+
