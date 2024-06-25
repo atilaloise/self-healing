@@ -1,0 +1,62 @@
+networks:
+  ambiente_cloud:
+    external: true
+  backend:
+
+services:
+  mariadb:
+    image: mariadb:10.5.8
+    restart: on-failure:5
+    env_file:
+      - stack.env
+    volumes:
+      - rd_db:/var/lib/mysql
+    networks:
+      - backend
+      
+  rundeck:
+    image:  atilaloise/rundeck:5.2.0
+    depends_on:
+      - mariadb
+    restart: on-failure:5
+    env_file:
+      - stack.env
+    networks:
+      - backend
+      - ambiente_cloud
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.${server_hostname}.rule=Host(`${server_hostname}.skywalkertech.com.br`)"
+      - "traefik.docker.network=ambientes_traefik"
+      - "traefik.http.services.${server_hostname}.loadbalancer.server.port=4440"
+      - "traefik.http.middlewares.${server_hostname}-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.${server_hostname}-http.entrypoints=web"
+      - "traefik.http.routers.${server_hostname}.entrypoints=websecure"
+      - "traefik.http.middlewares.${server_hostname}-ipwhitelist.IPAllowList.sourcerange=192.168.1.0/24"
+      - "traefik.http.routers.${server_hostname}.middlewares=${server_hostname}headers, ${server_hostname}-ipwhitelist"
+      - "traefik.http.routers.${server_hostname}.tls=true"
+      - "traefik.http.routers.${server_hostname}.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.${server_hostname}headers.headers.customFrameOptionsValue=ALLOW-FROM https://${server_hostname}.skywalkertech.com.br"
+      - "traefik.http.middlewares.${server_hostname}headers.headers.contentSecurityPolicy=frame-ancestors 'self' skywalkertech.com.br *.skywalkertech.com.br"
+      - "traefik.http.middlewares.${server_hostname}headers.headers.stsSeconds=155520011"
+      - "traefik.http.middlewares.${server_hostname}headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.${server_hostname}headers.headers.stsPreload=true"
+    volumes:
+      - rd_etc:/etc/rundeck
+      - rd_projects:/var/lib/rundeck/projects
+      - rd_storage:/var/lib/rundeck/var/storage
+      - rd_exec_logs:/var/lib/rundeck/logs
+      - rd_service_logs:/var/log/rundeck
+      - rd_ssh:/var/lib/rundeck/.ssh
+      - rd_plugins:/var/lib/rundeck/libext
+
+volumes:
+  rd_db:
+  rd_etc:
+  rd_projects:
+  rd_storage:
+  rd_exec_logs:
+  rd_service_logs:
+  rd_ssh:
+  rd_plugins:

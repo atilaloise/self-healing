@@ -1,0 +1,94 @@
+networks:
+  cloud:
+    driver: bridge
+services:
+  frontman:
+    image: traefik:v2.11
+    container_name: frontman
+    restart: always
+    command:
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
+      - "--api"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/conf/tls.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Set up the TLS configuration for our websecure listener
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.websecure.http.tls.certResolver=letsencrypt"
+        # default ssls
+      - "--certificatesresolvers.letsencrypt.acme.email=atila@skywalkertech.com.br"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+        # metrics
+      - "--metrics.prometheus=true"
+      - "--entryPoints.metrics.address=:8899"
+      - "--metrics.prometheus.entryPoint=metrics"
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`frontman.skywalkertech.com.br`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.middlewares=authtraefik"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=atila:$$apr1$$/J1i9K9zE0j380"
+      # global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      # middleware redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8899:8899"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt/
+      - traefik_conf:/conf
+      - traefik_logs:/var/log/traefik
+    networks:
+      - cloud
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: "portainer"
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+      - portainer_data:/data
+    networks:
+      - cloud
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer-web.rule=Host(`infra.skywalkertech.com.br`)"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      - "traefik.docker.network=cloud"
+      - "traefik.http.middlewares.portainer-web-caldav.redirectregex.permanent=true"
+      - "traefik.http.middlewares.portainer-web-caldav.redirectregex.regex=^https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.portainer-web-caldav.redirectregex.replacement=https://$${1}/remote.php/dav/"
+      - "traefik.http.middlewares.portainer-web-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.portainer-web-ipwhitelist.ipwhitelist.sourcerange=192.168.1.0/24"
+      - "traefik.http.routers.portainer-web.middlewares=portainer-web-caldav@docker, servicests, portainer-web-ipwhitelist"
+      - "traefik.http.routers.portainer-web-http.entrypoints=web"
+      - "traefik.http.routers.portainer-web.entrypoints=websecure"
+      - "traefik.http.routers.portainer-web.tls=true"
+      - "traefik.http.routers.portainer-web.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.servicests.headers.stsincludesubdomains=false"
+      - "traefik.http.middlewares.servicests.headers.stspreload=true"
+      - "traefik.http.middlewares.servicests.headers.stsseconds=31536000"
+      - "traefik.http.middlewares.servicests.headers.isdevelopment=false"
+
+volumes:
+  portainer_data:
+  traefik_certs:
+  traefik_conf:
+  traefik_logs:

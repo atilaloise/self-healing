@@ -1,0 +1,111 @@
+volumes:
+  pgsqldata:
+  pgsqlconf:
+  pgsqllog:
+  zabbixdata:
+  zabbix_externalscripts:
+
+networks:
+  ambiente_cloud:
+    external: true
+  backend:
+
+services:
+  zabbix-pgsql:
+    restart: always
+    container_name: zabbix-pgsql
+    image: postgres:latest
+    networks:
+      - backend
+    volumes:
+      - pgsqldata:/var/lib/postgresql/data
+      - pgsqlconf:/etc/postgresql
+      - pgsqllog:/var/log/postgresql
+    environment:
+      POSTGRES_USER: zbbix_user
+      POSTGRES_PASSWORD: zbbix_pwd
+      POSTGRES_DB: zabbixdb
+
+  zabbix-server:
+    restart: always
+    container_name: zabbix-server
+    image: zabbix/zabbix-server-pgsql:latest
+    build:
+      context: zabbix/
+    networks:
+      - backend
+    volumes:
+      - zabbixdata:/usr/lib/zabbix
+      - zabbix_externalscripts:/usr/lib/zabbix/externalscripts
+    ports:
+      - '10051:10051'
+      - '10052:10052'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DB_SERVER_HOST: zabbix-pgsql
+      POSTGRES_USER: zbbix_user
+      POSTGRES_PASSWORD: zbbix_pwd
+      POSTGRES_DB: zabbixdb
+      ZBX_TIMEOUT: 20
+      ZBX_CACHESIZE: 256M
+      ZBX_VALUECACHESIZE: 256M
+    depends_on:
+      - zabbix-pgsql
+
+  zabbix-web:
+    restart: always
+    container_name: zabbix-web
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    networks:
+      - backend
+      - ambiente_cloud
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: zabbix-pgsql
+      POSTGRES_USER: zbbix_user
+      POSTGRES_PASSWORD: zbbix_pwd
+      POSTGRES_DB: zabbixdb
+    depends_on:
+      - zabbix-pgsql
+      - zabbix-server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zbx-skywalker.rule=Host(`zbx.skywalkertech.com.br`)"
+      - "traefik.docker.network=ambiente_cloud"
+      - "traefik.http.middlewares.zbx-skywalker-caldav.redirectregex.permanent=true"
+      - "traefik.http.middlewares.zbx-skywalker-caldav.redirectregex.regex=^https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.zbx-skywalker-caldav.redirectregex.replacement=https://$${1}/remote.php/dav/"
+      - "traefik.http.middlewares.zbx-skywalker-https.redirectscheme.scheme=https"
+      # change these ip ranges to your scenario
+      - "traefik.http.middlewares.zbx-skywalker-ipallowlist.ipallowlist.sourcerange=192.168.1.0/24,168.205.126.10/32"
+      - "traefik.http.routers.zbx-skywalker.middlewares=zbx-skywalker-caldav@docker, servicests, zbx-skywalker-ipallowlist"
+      - "traefik.http.routers.zbx-skywalker-http.entrypoints=web"
+      - "traefik.http.routers.zbx-skywalker.entrypoints=websecure"
+      - "traefik.http.routers.zbx-skywalker.tls=true"
+      - "traefik.http.routers.zbx-skywalker.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.servicests.headers.stsincludesubdomains=false"
+      - "traefik.http.middlewares.servicests.headers.stspreload=true"
+      - "traefik.http.middlewares.servicests.headers.stsseconds=31536000"
+      - "traefik.http.middlewares.servicests.headers.isdevelopment=false" 
+
+  zabbix-agent:
+    container_name: zabbix-agent
+    image: zabbix/zabbix-agent2:ubuntu-latest
+    user: root
+    networks:
+      - backend
+    restart: always
+    privileged: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /dev:/host/dev:ro
+      - /etc:/host/etc:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - '10050:10050'
+    environment:
+      - ZBX_HOSTNAME=Docker01
+      - ZBX_SERVER_HOST=172.21.0.1
+      - ZBX_TIMEOUT=20

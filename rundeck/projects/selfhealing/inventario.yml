@@ -1,0 +1,42 @@
+LAB02:
+  ansible-ssh-user: atila
+  osFamily: Linux
+  osArch: x86_64
+  ip: 192.168.1.102
+  ansible_port: '22'
+  ansible-become: 'true'
+  description: Server de lab 02
+  osName: Ubuntu
+  env: prod
+  ssh-authentication: privatekey
+  ansible-become-method: sudo
+  tags: LAB
+  ansible-ssh-auth-type: privateKey
+  nodename: LAB02
+  ansible-become-user: root
+  hostname: 192.168.1.102
+  osVersion: 22.04.4 LTS
+  ssh-key-storage-path: keys/selfhealing/atila.private
+  ansible-ssh-key-storage-path: keys/selfhealing/atila.private
+  username: atila
+LAB01:
+  ansible-ssh-user: atila
+  osFamily: Linux
+  osArch: x86_64
+  ip: 192.168.1.101
+  ansible_port: '22'
+  ansible-become: 'true'
+  description: Server de lab 01
+  osName: Ubuntu
+  env: prod
+  ssh-authentication: privatekey
+  ansible-become-method: sudo
+  tags: LAB
+  ansible-ssh-auth-type: privateKey
+  nodename: LAB01
+  ansible-become-user: root
+  hostname: 192.168.1.101
+  osVersion: 22.04.4 LTS
+  ssh-key-storage-path: keys/selfhealing/atila.private
+  ansible-ssh-key-storage-path: keys/selfhealing/atila.private
+  username: atila
