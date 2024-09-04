@@ -1,12 +1,12 @@
 import re
 
 def remove_pipeline_block(yaml_content, repository_name, project_name):
-    # Regex para identificar blocos de pipelines
+    # Regex para identificar blocos de pipelines que contêm as chaves repository e project em qualquer ordem
     pattern = re.compile(
-        r'(\s*- repository:\s*' + re.escape(repository_name) + r'\s*\n'
-        r'(?:\s+.+\n)*?'  # Pega todas as linhas dentro do bloco
-        r'\s*project:\s*' + re.escape(project_name) + r'\s*\n'
-        r'(?:\s+.+\n)*)',  # Continua pegando todas as linhas dentro do bloco
+        r'(\s*-\s*(?:\w+:\s*.*\n)+?'  # Início do bloco, capturando qualquer chave e valor
+        r'(?=.*?\brepository:\s*' + re.escape(repository_name) + r'\b)'  # Condição: deve conter a chave repository com o valor correspondente
+        r'(?=.*?\bproject:\s*' + re.escape(project_name) + r'\b)'  # Condição: deve conter a chave project com o valor correspondente
+        r'(?:\s+\w+:\s*.*\n)*)',  # Continua capturando até o final do bloco
         re.MULTILINE
     )
     
@@ -18,13 +18,13 @@ def remove_pipeline_block(yaml_content, repository_name, project_name):
 # Exemplo de uso
 yaml_content = """
 pipelines:
-  - repository: teste1
+  - team: decv
+    repository: teste1
     template: xpto
-    team: decv
     project: IAB
 
-  - repository: teste4
-    template: xpto
+  - template: xpto
+    repository: teste4
     project: IAB
     team: decv
 
@@ -37,5 +37,4 @@ pipelines:
 repository_name = "teste4"
 project_name = "IAB"
 
-new_yaml_content = remove_pipeline_block(yaml_content, repository_name, project_name)
-print(new_yaml_content)
+new_yaml_content = remove_pipeline_block(yaml_content,
