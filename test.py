@@ -43,4 +43,5 @@ file_path = 'caminho/para/seu/arquivo.yaml'
 repository_value = "teste4"
 project_value = "IAB"
 
-#
+# Processa o arquivo YAML
+process_yaml_file(file_path, repository_value, project_value)
