@@ -1,8 +1,13 @@
 import yaml
 import re
 
-def load_yaml(yaml_content):
-    return yaml.safe_load(yaml_content)
+def load_yaml_from_file(file_path):
+    with open(file_path, 'r') as file:
+        return file.read()
+
+def write_yaml_to_file(file_path, content):
+    with open(file_path, 'w') as file:
+        file.write(content)
 
 def find_block(yaml_content, repository_value, project_value):
     # Regex para encontrar o bloco com as chaves e valores especificados
@@ -20,43 +25,22 @@ def remove_block(yaml_content, block):
         yaml_content = yaml_content.replace(block, "\n", 1)
     return yaml_content
 
+def process_yaml_file(file_path, repository_value, project_value):
+    # Carrega o conteúdo do arquivo YAML
+    yaml_content = load_yaml_from_file(file_path)
+
+    # Encontra o bloco correspondente
+    block_to_remove = find_block(yaml_content, repository_value, project_value)
+
+    # Remove o bloco e atualiza o YAML
+    updated_yaml_content = remove_block(yaml_content, block_to_remove)
+
+    # Escreve o conteúdo atualizado de volta ao arquivo
+    write_yaml_to_file(file_path, updated_yaml_content)
+
 # Exemplo de uso:
-yaml_content = """
-__mobile_ios_modules: &mobile_ios_modules
-  team: ios
-  template: mobile/ios
-  project: iba
-
-pipelines:
-  - repository: teste1
-    template: xpto
-    team: decv
-    project: IAB
-
-  - template: xpto
-    repository: teste4
-    project: IAB
-    team: decv
-
-  - repository: teste_mobile
-    <<: *mobile_ios_modules
-
-  - repository: teste2
-    team: decv
-    project: IAB
-    template: xpto
-"""
-
+file_path = 'caminho/para/seu/arquivo.yaml'
 repository_value = "teste4"
 project_value = "IAB"
 
-# Carrega o conteúdo do YAML
-yaml_loaded = load_yaml(yaml_content)
-
-# Encontra o bloco correspondente
-block_to_remove = find_block(yaml_content, repository_value, project_value)
-
-# Remove o bloco e atualiza o YAML
-updated_yaml_content = remove_block(yaml_content, block_to_remove)
-
-print(updated_yaml_content)
+#
