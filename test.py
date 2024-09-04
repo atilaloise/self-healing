@@ -1,16 +1,19 @@
 import re
 
 def remove_pipeline_block(yaml_content, repository_name, project_name):
-    # Define a expressão regular para encontrar blocos com 'repository' e 'project' específicos
+    # Regex para identificar blocos de pipelines
     pattern = re.compile(
-        r'-\s*repository:\s*{}\n\s*[^-]*?project:\s*{}\n(?:\s+[^-]*\n)*'.format(re.escape(repository_name), re.escape(project_name)),
+        r'(\s*- repository:\s*' + re.escape(repository_name) + r'\s*\n'
+        r'(?:\s+.+\n)*?'  # Pega todas as linhas dentro do bloco
+        r'\s*project:\s*' + re.escape(project_name) + r'\s*\n'
+        r'(?:\s+.+\n)*)',  # Continua pegando todas as linhas dentro do bloco
         re.MULTILINE
     )
     
-    # Substitui o bloco encontrado por uma linha em branco (para evitar sobreposição)
-    modified_yaml = re.sub(pattern, '\n', yaml_content)
-
-    return modified_yaml
+    # Substitui o bloco encontrado por uma linha vazia para evitar sobreposição
+    new_yaml_content = re.sub(pattern, '\n', yaml_content)
+    
+    return new_yaml_content.strip()
 
 # Exemplo de uso
 yaml_content = """
@@ -34,5 +37,5 @@ pipelines:
 repository_name = "teste4"
 project_name = "IAB"
 
-modified_yaml = remove_pipeline_block(yaml_content, repository_name, project_name)
-print(modified_yaml)
+new_yaml_content = remove_pipeline_block(yaml_content, repository_name, project_name)
+print(new_yaml_content)
