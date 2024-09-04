@@ -37,4 +37,5 @@ pipelines:
 repository_name = "teste4"
 project_name = "IAB"
 
-new_yaml_content = remove_pipeline_block(yaml_content,
+new_yaml_content = remove_pipeline_block(yaml_content, repository_name, project_name)
+print(new_yaml_content)
